@@ -28,30 +28,23 @@ jobs:
           Restart-Service TermService -Force
 
       # =========================
-      # Create RDP User (FIXED)
+      # Create RDP User (NO New-LocalUser)
       # =========================
       - name: Create RDP User
         shell: powershell
         run: |
-          $chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#"
-          $password = -join (1..18 | ForEach-Object { $chars | Get-Random })
+          $username = "RDP"
+          $password = "TempRDP123!@#"
 
-          $secure = ConvertTo-SecureString $password -AsPlainText -Force
+          # delete old user if exists
+          net user $username /delete 2>$null
 
-          if (Get-LocalUser -Name "RDP" -ErrorAction SilentlyContinue) {
-            Remove-LocalUser -Name "RDP"
-          }
+          # create user
+          net user $username $password /add
+          net localgroup Administrators $username /add
+          net localgroup "Remote Desktop Users" $username /add
 
-          New-LocalUser `
-            -Name "RDP" `
-            -Password $secure `
-            -AccountNeverExpires `
-            -PasswordNeverExpires
-
-          Add-LocalGroupMember -Group "Administrators" -Member "RDP"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
-
-          "RDP_USER=RDP" | Out-File $env:GITHUB_ENV -Append
+          "RDP_USER=$username" | Out-File $env:GITHUB_ENV -Append
           "RDP_PASSWORD=$password" | Out-File $env:GITHUB_ENV -Append
 
       # =========================
@@ -94,7 +87,7 @@ jobs:
           Write-Host ""
 
       # =========================
-      # Keep Alive
+      # Keep Runner Alive
       # =========================
       - name: Keep Runner Alive
         shell: powershell
